@@ -1,0 +1,181 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+                      "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta charset="utf-8">
+
+	<link rel="stylesheet" href="style.css" />
+	<link rel="stylesheet" type="text/css" href="lib/d3.slider.css" media="screen" />
+
+	<script src="lib/jquery-2.1.4.min.js"></script>
+	<script src="lib/d3.v3.min.js"></script>
+	<script src="lib/topojson.v1.min.js"></script>
+	<script src="lib/d3.slider.js"></script>
+
+	<script src="map.js"></script>
+	<script src="data.js"></script>
+	<script src="flows.js"></script>
+	<script src="animated-flows.js"></script>
+	<script src="timeline.js"></script>
+
+	<script src="country-chart.js"></script>
+	<script src="area-chart.js"></script>
+</head>
+<body>
+	<h3 id="controls">
+		<a href="#" onclick="reverse(); currentAnimation = -1;" id="reverse">
+			<span>&#9658;</span>
+		</a>
+
+		<a href="#" onclick="pause(); currentAnimation = 0; timelineSpeed = 300;" id="pause" style="display: none;">
+			<span>&#9612;&#9612;</span>
+		</a>
+
+		<a href="#" onclick="play(); currentAnimation = 1;" id="play">
+			<span>&#9658;</span>
+		</a>
+	</h3>
+
+	<h3 id="speed">
+		0x
+	</h3>
+	
+	<div id="feature-legend">
+		<div class="legend">
+			<div class="legend-square" style="background-color: #EBEBEB;"></div> No data
+		</div>
+		
+		<div class="legend">
+			<div class="legend-square" style="background-color: #ccc;"></div> Data available
+		</div>
+		
+		<div class="legend">
+			<div class="legend-square" style="background-color: #404561;"></div> Selected country
+		</div>
+	</div>
+
+	<div id="country-panel">
+		<h3 id="country-container">
+			<div id="current-selection">
+				<span id="country-name">Click on a country for more info</span>
+				<span id="current-period"></span>
+			</div>
+
+			<a href="#" id="import" onclick="setCategory('IMPORT');">
+				<span>Import</span>
+			</a>
+
+			<a href="#" id="export" onclick="setCategory('EXPORT');">
+				<span>Export</span>
+			</a>
+		</h3>
+	</div>
+
+	<div id="timeline">
+		<div id="slider">
+
+		</div>
+	</div>
+<script>
+var svg = d3.select('body').append('svg')
+    .attr('width', '60%')
+    .style('min-height', '100%')
+    .style('height', '100%');
+
+var EU;
+
+d3.json('data/eu.json', function(data) {
+	EU = data;
+});
+
+//var country = 'NETHERLANDS';
+var country = 'SPAIN';
+var flow = 'EXPORT';
+var currentPeriod = '1995.01';
+
+var data;
+
+var connections = [];
+
+var widthScale;
+var opacityScale;
+var colorScale;
+var quantizeScale;
+
+var projection;
+var path;
+
+var features;
+var country_map = {};
+var capital_map = {};
+var country_info_map = {};
+
+var countries;
+
+var currentPosition = [500, 1200];
+var currentScale = 700;
+
+var timelineSpeed = 500;
+
+var numberOfCountries = 5;
+
+d3.json('data_new/'+ country +'.json', function(d) {
+	data = d;
+
+	addTimeline();
+
+	createConnections(data[flow]);
+
+	createScales();
+
+	loadCountryInfo(function() {
+		createProjection();
+
+		loadMap('data/world.topojson.json', function() {
+			d3.select('#country-name').text(country_map[country].properties.name);
+			d3.select('#current-period').text(currentPeriod.split('.')[0]);
+
+			setupCountryChart(numberOfCountries);
+			setupAreaChart(numberOfCountries);
+		});
+
+		// activateDrag();
+	});
+});
+
+var update = function(animated) {
+	path = d3.geo.path().projection(projection);
+
+	var subunits = svg.selectAll(".subunit")
+					  .data(features)
+	    
+	if(animated) {
+		subunits = subunits.transition()
+						   .duration(1000);
+	}
+	    
+	subunits.attr('d', path);
+	    
+	var connections = svg.selectAll('.connection')
+	    
+	if(animated) {
+	    connections = connections.transition()
+							     .duration(950);
+	}
+	    
+	connections.attr('d', function(d) {
+		return flowLine(d.countries);
+	});
+}
+
+setTimeout(function() {
+	play();
+	currentAnimation = 1;
+	
+	setTimeout(function() {
+		window.location.reload();
+	}, 40000);
+}, 5000);
+</script>
+</body>
+</html>
